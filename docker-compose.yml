@@ -1,0 +1,43 @@
+version: '3.1'
+services:
+  backend:
+    image: base_ai
+    container_name: ${PROJ_NAME}_backend
+    command: bash -c "sleep 5 && sh /usr/src/app/init_local.sh"
+    env_file: .env
+    environment:
+      - ENVIRONMENT=local
+      - DJANGO_DEBUG=True
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+  jupyter:
+    image: base_ai
+    container_name: ${PROJ_NAME}_jupyter
+    command: bash -c "jupyter notebook --allow-root"
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8888:8888"
+    links:
+      - tensor
+      # - mongo
+
+  tensor:
+    image: base_ai
+    container_name: ${PROJ_NAME}_tensor_board
+    command: bash -c "tensorboard --logdir=/usr/src/app/"
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "6006:6006"
+
+  frontend:
+    build: ./frontend
+    container_name: ${PROJ_NAME}_frontend
+    command: bash -c "npm run --prefix ./frontend start"
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "3000:3000"
