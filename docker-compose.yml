@@ -1,5 +1,18 @@
 version: '3.1'
 services:
+  db:
+    image: postgres:latest
+    env_file: .env
+    container_name: ${PROJ_NAME}_db
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    volumes:
+      - backend-db:/var/lib/postgresql/data
+
   backend:
     image: base_ai
     container_name: ${PROJ_NAME}_backend
@@ -12,6 +25,11 @@ services:
       - .:/usr/src/app
     ports:
       - "8000:8000"
+    links:
+      - db
+    depends_on:
+      - db
+
   jupyter:
     image: base_ai
     container_name: ${PROJ_NAME}_jupyter
@@ -41,3 +59,6 @@ services:
       - .:/usr/src/app
     ports:
       - "3000:3000"
+
+volumes:
+  backend-db:

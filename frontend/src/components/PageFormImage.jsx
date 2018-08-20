@@ -5,28 +5,32 @@ const RadioGroup = Radio.Group;
 const FormItem = Form.Item;
 
 
-const NewRazaForm = Form.create() (
+const PredictionForm = Form.create() (
     class extends React.Component {
 
-        state = {
-            other_raza: false
+        constructor(props) {
+            super(props);
+            this.state = {
+                other_obj: false
+            };
+            this.handleChoiceSuccessPredChange = this.handleChoiceSuccessPredChange.bind(this);
+        }
+
+        handleChoiceSuccessPredChange(e) {
+            this.props.handleChoiceSuccessPredChange(!!e.target.value);
+        }
+
+        getPredictions = () => {
+            return this.props.prediction !== null ? this.props.prediction['predictions'] : [];
         };
 
         handleChoices = (e) => {
-            console.log("CHANGE RADIO BUTTON", e);
-            if(e.target.value === this.props.dogs.length){
-                this.setState({
-                    other_raza: true,
-                }, () => {
-                    this.props.form.validateFields(['text_raza'], { force: true });
-                });
-            }else{
-                this.setState({
-                    other_raza: false,
-                }, () => {
-                    this.props.form.validateFields(['text_raza'], { force: true });
-                });
-            }
+            const possible_predictions =  this.getPredictions();
+            this.setState({
+                other_obj: e.target.value === possible_predictions.length,
+            }, () => {
+                this.props.form.validateFields(['text_obj'], { force: true });
+            });
         };
 
         render(){
@@ -35,37 +39,79 @@ const NewRazaForm = Form.create() (
                 height: '30px',
                 lineHeight: '30px',
             };
-            const { visible, onCancel, onCreate, form, dogs } = this.props;
+            const { visible, onCancel, onCreate, form, success_prediction } = this.props;
+            const possible_predictions =  this.getPredictions();
             const { getFieldDecorator } = form;
+
+            let header_pred = '';
+            let field_feedback = '';
+
+            if(possible_predictions.length > 0){
+                let pred = possible_predictions[0];
+                let probability = pred.probability*100;
+
+                if(probability > 55){
+                    header_pred =  (
+                        <React.Fragment>
+                            <h3>There're {probability.toFixed(2)} % to probabilities that is a/an {pred.label}</h3>
+                            <FormItem label="¿Is true?">
+                                {getFieldDecorator('success_prediction', {
+                                    rules: [{ required: true, message: 'This field is required.' }],
+                                    setFieldsValue: success_prediction ? 1 : 0,
+                                    initialValue: null
+                                })(
+                                    <RadioGroup onChange={this.handleChoiceSuccessPredChange}>
+                                        <Radio style={radioStyle} value={1}>Yes</Radio>
+                                        <Radio style={radioStyle} value={0}>No</Radio>
+                                    </RadioGroup>
+                                )}
+                            </FormItem>
+                        </React.Fragment>
+                    );
+                }
+
+                if(success_prediction === false || probability < 55){
+                    field_feedback = (
+                        <React.Fragment>
+                            <h3>I can't recognize this object. ¿Can you help me?</h3>
+                            <FormItem label="¿Any these options?">
+                                {getFieldDecorator('choice_obj', {
+                                    rules: [{ required: true, message: 'Select one option' }],
+                                    setFieldsValue: this.state.choice_obj,
+                                    initialValue: null
+                                })(
+                                    <RadioGroup onChange={this.handleChoices}>
+                                        {possible_predictions.map((pred, i) => <Radio style={radioStyle} key={`pred_${i}`} value={i}>{pred.label}</Radio>)}
+                                        <Radio style={radioStyle} value={possible_predictions.length}>Ninguna de las anteriores</Radio>
+                                    </RadioGroup>
+                                )}
+                            </FormItem>
+                            <FormItem label="Is not none of the above options? Can you describe it?">
+                                {getFieldDecorator('text_obj', {
+                                    rules: [
+                                        {
+                                            required: this.state.other_obj,
+                                            message: 'If not none of the above optiones. Please, describe it.'
+                                        }
+                                    ],
+                                })(
+                                    <Input placeholder="What is it?" />
+                                )}
+                            </FormItem>
+                        </React.Fragment>
+                    )
+                }
+            }
+
             return (<Modal
-                title="Basic Modal"
+                title="Prediction"
                 visible={visible}
                 onOk={onCreate}
-                onCancel={onCancel}>
-                <p>No puedo reconocer bien este objeto. ¿Que es?</p>
+                onCancel={onCancel}
+                destroyOnClose={true}>
                 <Form layout="vertical">
-                    <FormItem label="¿Algunas de estas opciones?">
-                        {getFieldDecorator('choice_raza', {
-                            rules: [{ required: true, message: 'Selecciona una raza' }],
-                        })(
-                            <RadioGroup value={this.state.choice_raza} onChange={this.handleChoices}>
-                                {dogs.map((dog, i) => <Radio style={radioStyle} value={i}>{dog.label}</Radio>)}
-                                <Radio style={radioStyle} value={dogs.length}>Ninguna de las anteriores</Radio>
-                            </RadioGroup>
-                        )}
-                    </FormItem>
-                    <FormItem label="¿No es ninguna de las anteriores? ¿Cual es?">
-                        {getFieldDecorator('text_raza', {
-                            rules: [
-                                {
-                                    required: this.state.other_raza,
-                                    message: 'Sino es ninguna de las opciones anteriores, por favor describa cual es.'
-                                }
-                            ],
-                        })(
-                            <Input placeholder="Escriba que es" />
-                        )}
-                    </FormItem>
+                    {header_pred}
+                    {field_feedback}
                 </Form>
             </Modal>);
         }
@@ -73,47 +119,52 @@ const NewRazaForm = Form.create() (
 );
 
 
-
-
 class PageFormImage extends Component {
 
 
+    constructor(props) {
+        super(props);
+        this.state = {
+            visible: false,
+            choice_obj: null,
+            obj_name: null,
+            prediction: null,
+            success_prediction: null
+        };
+
+        this.upload_props = {
+            name: 'image',
+            accept: 'image/*',
+            multiple: false,
+            action: 'http://0.0.0.0:8000/api/ocr/',
+            headers: {
+                authorization: 'authorization-text',
+            },
+            onChange: this.onUploadImage,
+        };
+
+        this.handleChoiceSuccessPredChange = this.handleChoiceSuccessPredChange.bind(this);
+    }
+
+
+    handleChoiceSuccessPredChange(success_pred) {
+        this.setState({
+            success_prediction: success_pred
+        });
+    }
+
     onUploadImage = (info) => {
-        if (info.file.status !== 'uploading') {
-            console.log(info.file, info.fileList);
-        }
         if (info.file.status === 'done') {
-            let probability = info.file.response.predictions[0].probability.toFixed(2)*100;
-            if (probability > 55){
-                message.success(`Hay un ${probability} % de probabilidades que sea un ${info.file.response.predictions[0].label}`);
-            }else{
+            if (info.file.response['predictions'].length > 0) {
                 this.setState({
                     visible: true,
-                    options_know_dogs: info.file.response.predictions
+                    prediction: info.file.response,
+                    success_prediction: null
                 });
+            } else if (info.file.status === 'error') {
+                message.error(`${info.file.name} file upload failed.`);
             }
-        } else if (info.file.status === 'error') {
-            message.error(`${info.file.name} file upload failed.`);
         }
-        console.log(info);
-    };
-
-    upload_props = {
-        name: 'image',
-        accept: 'image/*',
-        multiple: false,
-        action: 'http://0.0.0.0:8000/predict/',
-        headers: {
-            authorization: 'authorization-text',
-        },
-        onChange: this.onUploadImage,
-    };
-
-    state = {
-        visible: false,
-        options_know_dogs: [],
-        choice_dog: null,
-        dog_name: null
     };
 
     handleOk = () => {
@@ -122,10 +173,26 @@ class PageFormImage extends Component {
             if (err) {
                 return;
             }
-
-            console.log('Received values of form: ', values);
-            form.resetFields();
-            this.setState({ visible: false });
+            let prediction = this.state.prediction;
+            if(values['success_prediction'] === 1){
+                console.log("ENTRO!! " , prediction.predictions[0].label);
+                prediction['label'] = prediction.predictions[0].label;
+            }else {
+                if(values['choice_obj'] < prediction.predictions.length){
+                    prediction['label'] = prediction.predictions[values['choice_obj']].label;
+                }else{
+                    prediction['label'] = values['text_obj'];
+                }
+            }
+            let body = JSON.stringify(prediction);
+            fetch(`http://0.0.0.0:8000/api/ocr/${prediction.id}/`, {method: "PUT", body,
+                headers: {"Content-Type": "application/json"}})
+                .then(res => res.json())
+                .then(pred => {
+                    message.success(`Su respuesta ah sido guardada, gracias por ayudarnos`);
+                    form.resetFields();
+                    this.setState({ visible: false });
+                });
         });
     };
 
@@ -138,13 +205,6 @@ class PageFormImage extends Component {
         });
     };
 
-    onSelectDog = (e) => {
-        console.log('radio checked', e.target.value);
-        this.setState({
-            value: e.target.value,
-        });
-    };
-
     saveFormRef = (formRef) => {
         this.formRef = formRef;
     };
@@ -153,12 +213,14 @@ class PageFormImage extends Component {
 
         return (
             <div>
-                <NewRazaForm
+                <PredictionForm
                     wrappedComponentRef={this.saveFormRef}
                     visible={this.state.visible}
-                    dogs={this.state.options_know_dogs}
+                    prediction={this.state.prediction}
                     onCancel={this.handleCancel}
                     onCreate={this.handleOk}
+                    handleChoiceSuccessPredChange={this.handleChoiceSuccessPredChange}
+                    success_prediction={this.state.success_prediction}
                 />
                 <div>
                     <Upload {...this.upload_props}>

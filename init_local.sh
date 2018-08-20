@@ -23,10 +23,7 @@ if not User.objects.filter(is_superuser=True).exists():
     user.save()
 
 from django.contrib.sites.models import Site
-site = Site.objects.first()
-if site.domain != '0.0.0.0:8000':
-    site.domain = '0.0.0.0:8000'
-    site.save()
+Site.objects.get_or_create(domain='0.0.0.0:8000', name='localhost')
 " | ./backend/manage.py shell || exit 1
 
 # echo "[run] Load Initial data"
