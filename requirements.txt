@@ -8,7 +8,7 @@ certifi==2018.4.16
 chardet==3.0.4
 cycler==0.10.0
 decorator==4.3.0
-Django==2.0.6
+Django==2.2.10
 django-cors-headers==2.3.0
 django-des==2.4.1
 django-solo==1.1.3
